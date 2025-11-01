@@ -1,0 +1,8 @@
+langchain
+langgraph
+transformers
+sentence-transformers
+python-dotenv
+pandas
+plotly
+nbformat
