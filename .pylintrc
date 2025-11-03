@@ -3,4 +3,7 @@ ignore=venv,build,dist,__pycache__
 max-line-length=100
 
 [MESSAGES CONTROL]
-disable=E0401    # ignore import problems
+disable=E0401
+
+[REPORTS]
+fail-under=8.0
