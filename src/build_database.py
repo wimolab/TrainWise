@@ -12,22 +12,41 @@ from dotenv import load_dotenv
 import logging
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
+from uuid import uuid4
+from langchain_huggingface import HuggingFaceEmbeddings
+
+
+
+
+logging.basicConfig(level=logging.INFO)
 
 
 if __name__ == "__main__":
-    file_name = "./data/database/faiss_index.bin"
-    os.makedirs(os.path.dirname(file_name), exist_ok=True)
-    database = dbm.initialize_database(dimension=768)
-    faiss.write_index(database, file_name)
 
-    model = SentenceTransformer("nomic-ai/modernbert-embed-base")
+    embedding_function = HuggingFaceEmbeddings(
+        model_name="nomic-ai/modernbert-embed-base",
+        encode_kwargs={"normalize_embeddings": True}
+    )
+    # print(embedding_function.embed_query("hello world"))
+
+    index = faiss.IndexFlatL2(len(embedding_function.embed_query("hello world")))
+
+    vector_store = FAISS(
+        embedding_function=embedding_function,
+        index=index,
+        docstore=InMemoryDocstore(),
+        index_to_docstore_id={},
+    )
 
     load_dotenv()
     sheet_id = os.getenv("GOOGLE_SHEETS_ID")
     sheet_name = os.getenv("GOOGLE_SHEETS_NAME")
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
     metadata = pd.read_csv(url)
-
+     
+    columns = ["URL", "Title", "Authors", "PublicationDate", "Source", "PageTitle"]
+    documents = []
     not_read = []
     for _, row in metadata.iterrows():
         url = row["URL"]
@@ -35,6 +54,7 @@ if __name__ == "__main__":
             try:
                 file_path = f"./data/input/{row['Id']}"
                 text = dcu.read_pdf_from_url(file_path=file_path)
+                documents.append(Document(page_content=text, metadata=row[columns].to_dict()))
             except Exception as e:
                 not_read.append(url)
                 pass
@@ -43,16 +63,15 @@ if __name__ == "__main__":
             try:
                 html = dcu.scrape(url)
                 text = dcu.clean_html_to_text(html)
+                documents.append(Document(page_content=text, metadata=row[columns].to_dict()))
             except Exception as e:
                 not_read.append(url)
                 pass
 
-        logging.info("The following URLs could not be read:\n%s", "\n".join(not_read))
-
-        chunks = dcu.chunk_text(text, chunk_size=200, overlap=80)
-        doc_embeddings = model.encode([f"passage: {d}" for d in chunks], normalize_embeddings=True)
-        dbm.update_database(file_name, embeddings=doc_embeddings)
-
-        logging.info(f"All data was added to the Faiss Database")
-
         
+
+    logging.info("The following URLs could not be read:\n%s", "\n".join(not_read))
+
+    uuids = [str(uuid4()) for _ in range(len(documents))]
+
+    vector_store.add_documents(documents=documents, ids=uuids)

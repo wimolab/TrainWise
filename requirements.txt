@@ -10,3 +10,7 @@ bs4
 faiss-cpu
 lxml
 pypdf
+black
+mypy
+pylint
+isort
