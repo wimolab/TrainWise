@@ -6,3 +6,7 @@ python-dotenv
 pandas
 plotly
 nbformat
+bs4
+faiss-cpu
+lxml
+pypdf
