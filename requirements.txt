@@ -6,3 +6,8 @@ python-dotenv
 pandas
 plotly
 nbformat
+langchain-community
+beautifulsoup4
+langchain-chroma>=0.1.2
+ipywidgets
+firecrawl-py
