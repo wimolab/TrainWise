@@ -11,3 +11,12 @@ beautifulsoup4
 langchain-chroma>=0.1.2
 ipywidgets
 firecrawl-py
+arxiv
+pymupdf
+langchain-pymupdf4llm
+tqdm
+langchain-huggingface
+fastapi
+uvicorn
+transformers
+pydantic
