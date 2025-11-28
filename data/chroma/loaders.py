@@ -7,6 +7,7 @@
 from langchain_community.document_loaders.firecrawl import FireCrawlLoader
 from langchain_community.retrievers import ArxivRetriever
 from tqdm import tqdm
+from langchain_core.documents import Document
 
 
 
@@ -99,6 +100,7 @@ def extract_arxiv_paper_content(text: str) -> str:
         return text[abstract_index + len("abstract"):].strip()
     return text.strip()
 
+
 ######## Document Class ########
 
 class TrainWiseDocument:
@@ -111,6 +113,16 @@ class TrainWiseDocument:
     def __repr__(self):
         return f"TrainWiseDocument(title={self.title}, description={self.description}, content={self.content})"
 
+######## LangChain Document ########
+def convert_to_langchain_document(trainwise_doc: TrainWiseDocument) -> Document:
+    return Document(
+        page_content=trainwise_doc.content,
+        metadata={
+            "title": trainwise_doc.title,
+            "description": trainwise_doc.description,
+            "url": trainwise_doc.url
+        }
+    )
 
 ##### Loaders ########
 class HuggingFaceBlogLoader:
@@ -140,6 +152,8 @@ class HuggingFaceBlogLoader:
         if title == "N/A" or not title.strip():
             title = extract_title(doc.page_content)
         description = doc.metadata.get("description", "")
+        if description.startswith("We’re on a journey to advance"):
+            description = "Hugging Face Blog post titled " + " " + title
         url = doc.metadata.get("url", "")
         
         raw_content = doc.page_content
@@ -147,12 +161,12 @@ class HuggingFaceBlogLoader:
         blog_content = extract_blog_content(content_wo_comments)
         blog = title + "\n\n" + blog_content
 
-        return TrainWiseDocument(
+        return convert_to_langchain_document(TrainWiseDocument(
             title=title,
             description=description,
             content=blog,
             url=url
-        )
+        ))
 
     def clean(self, docs):
         cleaned_docs = []
@@ -192,13 +206,13 @@ class HuggingFaceDocsLoader:
         url = doc.metadata.get("url", "")
         content = extract_relevant_content(doc)
 
-        return TrainWiseDocument(
+        return convert_to_langchain_document(TrainWiseDocument(
             title=title,
             description=description,
             content=content,
             url=url
-        )
-    
+        ))
+
     def clean(self, docs):
         cleaned_docs = []
         for doc in tqdm(docs, desc="Cleaning Hugging Face docs"):
@@ -244,12 +258,12 @@ class ArxivLoader:
         url = f"https://arxiv.org/pdf/{doc.url}"
         description = f"Arxiv Paper titled '{title}' authored by {authors}"
 
-        return TrainWiseDocument(
+        return convert_to_langchain_document(TrainWiseDocument(
             title=title,
             description=description,
             content=paper_content,
             url=url
-        )
+        ))
 
     def clean(self, docs):
         cleaned_docs = []
