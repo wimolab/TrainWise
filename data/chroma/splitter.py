@@ -1,5 +1,5 @@
 """Text Splitter implementations
-class: ModernBertTokenSplitter
+class: TrainWiseTokenSplitter
 method: split_docs(docs: list[Document], tokens_per_chunk: int = 512, chunk_overlap: int = 50) -> list[Document]
 the splitter preserve metadata of the original Documents while splitting them into smaller chunks based on token count.
 """
@@ -49,7 +49,7 @@ class DocumentsTokensAnalysis:
         return analysis
 
 
-class ModernBertTokenSplitter:
+class TrainWiseTokenSplitter:
     def __init__(self, tokenizer, tokens_per_chunk: int = 512, chunk_overlap: int = 50):
         self.tokenizer = tokenizer
         self.tokens_per_chunk = tokens_per_chunk
