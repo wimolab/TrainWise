@@ -2,5 +2,5 @@
 name = "TrainWise"
 version = "0.1.0"
 
-[tool.setuptools]
-packages = ["data", "assistant"]
+[tool.setuptools.packages.find]
+where = ["."]
