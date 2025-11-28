@@ -74,9 +74,14 @@ def extract_relevant_content(doc) -> str:
 
 ######## Arxiv Cleaners ########
 def remove_references_section(text: str) -> str:
+    """Removes the references section, which usually starts with references or bibliography"""
     if not text:
         return text
     references_index = text.lower().rfind("references\n")
+    if references_index == -1:
+        bibliography_index = text.lower().rfind("bibliography\n")
+        if bibliography_index != -1:
+            return text[:bibliography_index].strip()
     if references_index != -1:
         return text[:references_index].strip()
     return text
