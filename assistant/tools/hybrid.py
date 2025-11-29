@@ -7,7 +7,7 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
 from hybrid import TrainWiseBM25Retriever
 from langchain_core.vectorstores import VectorStore
-from typing import Dict
+from typing import Dict, Optional, Any
 
 
 class HybridRetriever(BaseRetriever):
@@ -21,9 +21,9 @@ class HybridRetriever(BaseRetriever):
         self.weight_vector = weight_vector
         self.k = k
 
-    def _invoke_retrievers_and_weight_scores(self, query: str) -> Dict[str, float]:
-        bm25_results_with_scores = self.bm25_retriever.invoke(query, k=self.k)
-        vector_results_with_scores = self.vector_retriever.similarity_search_with_score(query, k=self.k)
+    def _invoke_retrievers_and_weight_scores(self, query: str, filter: Optional[Dict[str, Any]] = None) -> Dict[str, tuple[Document, float]]:
+        bm25_results_with_scores = self.bm25_retriever.invoke(query, k=self.k, filter=filter)
+        vector_results_with_scores = self.vector_retriever.similarity_search_with_score(query, k=self.k, filter=filter)
 
         docs_with_weighted_scores = {}
 
@@ -50,8 +50,8 @@ class HybridRetriever(BaseRetriever):
         return docs_with_weighted_scores
 
 
-    def invoke(self, query: str) -> list[Document]:
-        docs_with_weighted_scores = self._invoke_retrievers_and_weight_scores(query)
+    def invoke(self, query: str, filter: Optional[Dict[str, Any]] = None) -> list[Document]:
+        docs_with_weighted_scores = self._invoke_retrievers_and_weight_scores(query, filter=filter)
 
         # Sort documents by weighted score in descending order
         sorted_docs = sorted(docs_with_weighted_scores.values(), key=lambda x: x["score"], reverse=True)
