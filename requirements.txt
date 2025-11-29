@@ -22,3 +22,4 @@ transformers
 pydantic
 tiktoken
 seaborn
+rank_bm25
