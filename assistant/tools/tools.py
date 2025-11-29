@@ -10,7 +10,7 @@ from data.bm25.bm25retriever import TrainWiseBM25Retriever
 
 from hybrid import HybridRetriever
 
-from config import HF_TOKEN
+from config.config import HF_TOKEN
 
 PATH = "../../data/chunks.jsonl"
 MODEL = "nomic-ai/modernbert-embed-base"
@@ -40,7 +40,7 @@ def retrieve_tool(query:str, k:int=5, filter: Optional[Dict[str, Literal["hf", "
 
       # -- create BM25 retriever on the fly --
       docs = []
-      with open("../chunks.jsonl", "r", encoding="utf-8") as f:
+      with open(PATH, "r", encoding="utf-8") as f:
             for line in f:
                   docs.append(loads(line.strip()))
 
@@ -50,10 +50,10 @@ def retrieve_tool(query:str, k:int=5, filter: Optional[Dict[str, Literal["hf", "
 
       hybrid_retriever = HybridRetriever(bm25_retriever=bm25_retriever,
                                          vector_retriever=vector_store,
-                                         weight_bm25=0.2,
-                                         weight_vector=0.8,
+                                         weight_bm25=0.0,
+                                         weight_vector=1.0,
                                          k=k)
-      
+
       retrieved_docs = hybrid_retriever.invoke(query, filter=filter)
 
       # -- serialize results for prompt injection --
