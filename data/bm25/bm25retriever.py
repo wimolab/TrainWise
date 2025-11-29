@@ -1,4 +1,5 @@
-#bm25retriever.py
+# bm25retriever.py
+
 """A BM25 retriever implementation that returns documents with their scores.
 Which is not currently supported in langchain-community BM25Retriever."""
 
@@ -45,7 +46,7 @@ class TrainWiseBM25Retriever(BaseRetriever):
         **kwargs: Any,
     ) -> "TrainWiseBM25Retriever":
         """
-        Create a BM25Retriever from a list of texts.
+        Create a TrainWiseBM25Retriever from a list of texts.
         Args:
             texts: A list of texts to vectorize.
             metadatas: A list of metadata dicts to associate with each text.
@@ -55,7 +56,7 @@ class TrainWiseBM25Retriever(BaseRetriever):
             **kwargs: Any other arguments to pass to the retriever.
 
         Returns:
-            A BM25Retriever instance.
+            A TrainWiseBM25Retriever instance.
         """
         try:
             from rank_bm25 import BM25Okapi
@@ -92,7 +93,7 @@ class TrainWiseBM25Retriever(BaseRetriever):
         **kwargs: Any,
     ) -> "TrainWiseBM25Retriever":
         """
-        Create a BM25Retriever from a list of Documents.
+        Create a TrainWiseBM25Retriever from a list of Documents.
         Args:
             documents: A list of Documents to vectorize.
             bm25_params: Parameters to pass to the BM25 vectorizer.
@@ -100,7 +101,7 @@ class TrainWiseBM25Retriever(BaseRetriever):
             **kwargs: Any other arguments to pass to the retriever.
 
         Returns:
-            A BM25Retriever instance.
+            A TrainWiseBM25Retriever instance.
         """
         texts, metadatas, ids = zip(
             *((d.page_content, d.metadata, d.id) for d in documents)
@@ -114,38 +115,63 @@ class TrainWiseBM25Retriever(BaseRetriever):
             **kwargs,
         )
 
+    def _matches_filter(self, metadata: Dict[str, Any], filter_dict: Dict[str, Any]) -> bool:
+        """Check if document metadata matches the filter criteria.
+        
+        Args:
+            metadata: The document's metadata dictionary.
+            filter_dict: Dictionary of key-value pairs to filter by.
+            
+        Returns:
+            True if all filter criteria are met, False otherwise.
+        """
+        for key, value in filter_dict.items():
+            if key not in metadata or metadata[key] != value:
+                return False
+        return True
+
     def _get_relevant_documents(
-        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+        self, 
+        query: str, 
+        *, 
+        run_manager: CallbackManagerForRetrieverRun,
+        filter: Optional[Dict[str, Any]] = None
     ) -> List[Tuple[Document, float]]:
-        """Get relevant documents along with their normalized BM25 scores.
+        """Get relevant documents along with their sigmoid-normalized BM25 scores.
         
         Args:
             query: The query string to search for.
             run_manager: Callback manager for the retriever run.
+            filter: Optional dictionary of metadata key-value pairs to filter documents.
+                    Example: {"source": "arxiv", "year": "2023"}
             
         Returns:
             List of tuples containing (Document, normalized_score) pairs, where 
-            normalized_score is the min-max normalized BM25 relevance score in [0, 1].
+            normalized_score is the sigmoid-normalized BM25 relevance score in (0, 1).
         """
         processed_query = self.preprocess_func(query)
         
         # Get scores for all documents
         scores = self.vectorizer.get_scores(processed_query)
         
-        # Get top k indices
-        top_indices = np.argsort(scores)[::-1][:self.k]
-        top_scores = scores[top_indices]
+        # Apply sigmoid normalization: 1 / (1 + exp(-x))
+        # Note that while this maps the scores to (0, 1), the distribution is very different than similarity scores.
+        # To mitigate this, we will use low weights for BM25 in hybrid retrieval.
+        normalized_scores = 1 / (1 + np.exp(-scores))
         
-        # Normalize scores using min-max normalization to [0, 1]
-        min_score = top_scores.min()
-        max_score = top_scores.max()
-        
-        if max_score - min_score > 0:
-            normalized_scores = (top_scores - min_score) / (max_score - min_score)
+        if filter:
+            valid_indices = [
+                i for i, doc in enumerate(self.docs)
+                if self._matches_filter(doc.metadata, filter)
+            ]
+            # Filter scores to only include valid documents
+            filtered_scores = [(i, normalized_scores[i]) for i in valid_indices]
+            # Sort by score and get top k
+            filtered_scores.sort(key=lambda x: x[1], reverse=True)
+            top_results = filtered_scores[:self.k]
+            return [(self.docs[i], float(score)) for i, score in top_results]
         else:
-            # All scores are the same, set them all to 1.0
-            normalized_scores = np.ones_like(top_scores)
-        
-        # Return documents with their normalized scores
-        return [(self.docs[i], float(normalized_scores[idx])) 
-                for idx, i in enumerate(top_indices)]
+            # Get top k indices without filtering
+            top_indices = np.argsort(normalized_scores)[::-1][:self.k]
+            return [(self.docs[i], float(normalized_scores[i])) 
+                    for i in top_indices]
