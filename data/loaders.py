@@ -74,9 +74,14 @@ def extract_relevant_content(doc) -> str:
 
 ######## Arxiv Cleaners ########
 def remove_references_section(text: str) -> str:
+    """Removes the references section, which usually starts with references or bibliography"""
     if not text:
         return text
-    references_index = text.lower().rfind("references\n[1]")
+    references_index = text.lower().rfind("references\n")
+    if references_index == -1:
+        bibliography_index = text.lower().rfind("bibliography\n")
+        if bibliography_index != -1:
+            return text[:bibliography_index].strip()
     if references_index != -1:
         return text[:references_index].strip()
     return text
@@ -104,11 +109,12 @@ def extract_arxiv_paper_content(text: str) -> str:
 ######## Document Class ########
 
 class TrainWiseDocument:
-    def __init__(self, title, description, content, url):
+    def __init__(self, title, description, content, url, source):
         self.title = title
         self.description = description
         self.content = content
         self.url = url
+        self.source = source
 
     def __repr__(self):
         return f"TrainWiseDocument(title={self.title}, description={self.description}, content={self.content})"
@@ -120,7 +126,8 @@ def convert_to_langchain_document(trainwise_doc: TrainWiseDocument) -> Document:
         metadata={
             "title": trainwise_doc.title,
             "description": trainwise_doc.description,
-            "url": trainwise_doc.url
+            "url": trainwise_doc.url,
+            "source": trainwise_doc.source
         }
     )
 
@@ -165,7 +172,8 @@ class HuggingFaceBlogLoader:
             title=title,
             description=description,
             content=blog,
-            url=url
+            url=url,
+            source="hf"
         ))
 
     def clean(self, docs):
@@ -210,7 +218,8 @@ class HuggingFaceDocsLoader:
             title=title,
             description=description,
             content=content,
-            url=url
+            url=url,
+            source="hf"
         ))
 
     def clean(self, docs):
@@ -262,7 +271,8 @@ class ArxivLoader:
             title=title,
             description=description,
             content=paper_content,
-            url=url
+            url=url,
+            source="arxiv"
         ))
 
     def clean(self, docs):
