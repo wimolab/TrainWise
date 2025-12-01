@@ -6,9 +6,10 @@ from langchain_core.tools import tool
 from langchain_chroma import Chroma
 from langchain_huggingface.embeddings import HuggingFaceEndpointEmbeddings
 from langchain_core.load.load import loads
-from data.bm25.bm25retriever import TrainWiseBM25Retriever
 
+from data.bm25.bm25retriever import TrainWiseBM25Retriever
 from hybrid import HybridRetriever
+from rerank import TrainWiseReranker
 
 from config.config import HF_TOKEN
 
@@ -56,7 +57,11 @@ def retrieve_tool(query:str, k:int=5, filter: Optional[Dict[str, Literal["hf", "
 
       retrieved_docs = hybrid_retriever.invoke(query, filter=filter)
 
+      # -- rerank retrieved documents --
+      reranker = TrainWiseReranker()
+      reranked_docs = reranker.rerank(query=query, documents=retrieved_docs, top_k=k)
+
       # -- serialize results for prompt injection --
-      serialized = "\n\n".join([f"Source: {doc.metadata}\nContent: {doc.page_content}" for doc in retrieved_docs])
+      serialized = "\n\n".join([f"Source: {doc.metadata}\nContent: {doc.page_content}" for doc in reranked_docs])
 
       return serialized
